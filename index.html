@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Neon Drift — 3D Traffic Rush</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game-viewport">
+    <canvas id="game-canvas" tabindex="0"></canvas>
+  </div>
+
+  <div id="ui-overlays">
+    <!-- Main menu -->
+    <div id="screen-menu" class="screen active">
+      <div class="menu-card">
+        <div class="game-title">NEON<span>DRIFT</span></div>
+        <div class="menu-subtitle">3D Traffic Rush</div>
+        <div class="best">
+          PERSONAL BEST <span id="menu-best">0</span> M
+        </div>
+        <button id="btn-play" class="btn btn-primary">PLAY</button>
+        <div class="controls-hint">W/A/S-D or Arrows to drive &nbsp;•&nbsp; Space handbrake &nbsp;•&nbsp; C camera &nbsp;•&nbsp; ESC pause</div>
+        <label class="sound-toggle">
+          <input type="checkbox" id="sound-toggle" checked>
+          <span>SOUND</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- HUD (visible while driving) -->
+    <div id="hud" class="screen">
+      <div class="hud-speedo">
+        <div class="gauge-wrap">
+          <div id="gauge"></div>
+          <div id="tick-layer"></div>
+          <div id="needle"></div>
+          <div id="needle-cap"></div>
+        </div>
+        <div class="speed-readout">
+          <span id="speed-value">0</span><span class="unit">KM/H</span>
+        </div>
+        <div id="gear-display">N</div>
+      </div>
+      <div class="hud-stats">
+        <div class="stat"><span class="label">DISTANCE</span><span class="value" id="hud-distance">0</span><span class="unit">M</span></div>
+        <div class="stat"><span class="label">SCORE</span><span class="value" id="hud-score">0</span></div>
+        <div class="stat"><span class="label">MONEY</span><span class="value" id="hud-money">0</span></div>
+        <div class="stat"><span class="label">NEAR MISSES</span><span class="value" id="hud-nearmiss">0</span></div>
+        <div class="stat bonus flash" id="bonus-highspeed" style="display:none">HIGH SPEED BONUS</div>
+        <div class="stat bonus flash" id="bonus-wrongway" style="display:none">WRONG WAY BONUS</div>
+      </div>
+    </div>
+
+    <!-- Pause -->
+    <div id="screen-pause" class="screen">
+      <div class="menu-card">
+        <div class="pause-title">PAUSED</div>
+        <button id="btn-resume" class="btn btn-primary">RESUME</button>
+        <button id="btn-menu-pause" class="btn">MAIN MENU</button>
+      </div>
+    </div>
+
+    <!-- Game over -->
+    <div id="screen-gameover" class="screen">
+      <div class="menu-card">
+        <div class="go-title">CRASHED</div>
+        <div class="go-stats">
+          <div class="row"><span class="label">FINAL DISTANCE</span><span class="value" id="go-distance">0</span><span class="unit">M</span></div>
+          <div class="row"><span class="label">MAX SPEED</span><span class="value" id="go-maxspeed">0</span><span class="unit">KM/H</span></div>
+          <div class="row"><span class="label">AVG SPEED</span><span class="value" id="go-avgspeed">0</span><span class="unit">KM/H</span></div>
+          <div class="row"><span class="label">NEAR MISSES</span><span class="value" id="go-nearmiss">0</span></div>
+          <div class="row"><span class="label">TOTAL SCORE</span><span class="value" id="go-score">0</span></div>
+          <div class="row"><span class="label">MONEY EARNED</span><span class="value" id="go-money">0</span></div>
+          <div class="row best"><span class="label">PERSONAL BEST</span><span class="value" id="go-best">0</span><span class="unit">M</span></div>
+        </div>
+        <div class="btn-row">
+          <button id="btn-playagain" class="btn btn-primary">PLAY AGAIN</button>
+          <button id="btn-mainmenu" class="btn">MAIN MENU</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile touch controls -->
+    <div id="mobile-controls">
+      <div class="ctrl-group side">
+        <button class="ctrl-btn" id="mb-left" data-act="steerL">&#9664;</button>
+        <button class="ctrl-btn" id="mb-right" data-act="steerR">&#9654;</button>
+      </div>
+      <div class="ctrl-group pedals">
+        <button class="ctrl-btn pedal" id="mb-accel" data-act="accel">ACCEL</button>
+        <button class="ctrl-btn pedal" id="mb-brake" data-act="brake">BRAKE</button>
+      </div>
+      <div class="ctrl-group extra">
+        <button class="ctrl-btn" id="mb-handbrake" data-act="handbrake">HANDBRAKE</button>
+        <button class="ctrl-btn" id="mb-camera" data-act="camera">CAM</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
