@@ -1,9 +1,9 @@
 {
-  "name": "neon-drift",
+  "name": "traffic-rush",
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "description": "Neon Drift — a playable 3D traffic rushing driving game built with Three.js and Vite.",
+  "description": "Traffic Rush — a realistic 3D browser driving game built with Three.js and Vite.",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "vite build",
