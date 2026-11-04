@@ -3,25 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Neon Drift — 3D Traffic Rush</title>
+  <title>Traffic Rush — Realistic 3D Driving</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div id="game-viewport">
     <canvas id="game-canvas" tabindex="0"></canvas>
+    <div id="loading">Loading environment…</div>
   </div>
 
   <div id="ui-overlays">
     <!-- Main menu -->
     <div id="screen-menu" class="screen active">
       <div class="menu-card">
-        <div class="game-title">NEON<span>DRIFT</span></div>
-        <div class="menu-subtitle">3D Traffic Rush</div>
+        <div class="game-title">TRAFFIC<span>RUSH</span></div>
+        <div class="menu-subtitle">Realistic 3D Driving</div>
         <div class="best">
-          PERSONAL BEST <span id="menu-best">0</span> M
+          PERSONAL BEST <span id="menu-best">0</span> KM
         </div>
         <button id="btn-play" class="btn btn-primary">PLAY</button>
-        <div class="controls-hint">W/A/S-D or Arrows to drive &nbsp;•&nbsp; Space handbrake &nbsp;•&nbsp; C camera &nbsp;•&nbsp; ESC pause</div>
+        <div class="controls-hint">W / Up: Accelerate &nbsp;•&nbsp; S / Down: Brake &nbsp;•&nbsp; A / D: Steer &nbsp;•&nbsp; Space: Handbrake &nbsp;•&nbsp; C: Camera &nbsp;•&nbsp; ESC: Pause</div>
         <label class="sound-toggle">
           <input type="checkbox" id="sound-toggle" checked>
           <span>SOUND</span>
@@ -29,7 +30,7 @@
       </div>
     </div>
 
-    <!-- HUD (visible while driving) -->
+    <!-- HUD -->
     <div id="hud" class="screen">
       <div class="hud-speedo">
         <div class="gauge-wrap">
@@ -44,12 +45,12 @@
         <div id="gear-display">N</div>
       </div>
       <div class="hud-stats">
-        <div class="stat"><span class="label">DISTANCE</span><span class="value" id="hud-distance">0</span><span class="unit">M</span></div>
+        <div class="stat"><span class="label">DISTANCE</span><span class="value" id="hud-distance">0</span><span class="unit">KM</span></div>
         <div class="stat"><span class="label">SCORE</span><span class="value" id="hud-score">0</span></div>
-        <div class="stat"><span class="label">MONEY</span><span class="value" id="hud-money">0</span></div>
+        <div class="stat"><span class="label">OVERTAKES</span><span class="value" id="hud-overtakes">0</span></div>
         <div class="stat"><span class="label">NEAR MISSES</span><span class="value" id="hud-nearmiss">0</span></div>
-        <div class="stat bonus flash" id="bonus-highspeed" style="display:none">HIGH SPEED BONUS</div>
-        <div class="stat bonus flash" id="bonus-wrongway" style="display:none">WRONG WAY BONUS</div>
+        <div class="stat bonus flash" id="bonus-highspeed" style="display:none">HIGH SPEED</div>
+        <div class="stat bonus flash" id="bonus-clean" style="display:none">CLEAN OVERTake</div>
       </div>
     </div>
 
@@ -65,18 +66,18 @@
     <!-- Game over -->
     <div id="screen-gameover" class="screen">
       <div class="menu-card">
-        <div class="go-title">CRASHED</div>
+        <div class="go-title">COLLISION</div>
         <div class="go-stats">
-          <div class="row"><span class="label">FINAL DISTANCE</span><span class="value" id="go-distance">0</span><span class="unit">M</span></div>
+          <div class="row"><span class="label">DISTANCE</span><span class="value" id="go-distance">0</span><span class="unit">KM</span></div>
           <div class="row"><span class="label">MAX SPEED</span><span class="value" id="go-maxspeed">0</span><span class="unit">KM/H</span></div>
           <div class="row"><span class="label">AVG SPEED</span><span class="value" id="go-avgspeed">0</span><span class="unit">KM/H</span></div>
+          <div class="row"><span class="label">OVERTAKES</span><span class="value" id="go-overtakes">0</span></div>
           <div class="row"><span class="label">NEAR MISSES</span><span class="value" id="go-nearmiss">0</span></div>
           <div class="row"><span class="label">TOTAL SCORE</span><span class="value" id="go-score">0</span></div>
-          <div class="row"><span class="label">MONEY EARNED</span><span class="value" id="go-money">0</span></div>
-          <div class="row best"><span class="label">PERSONAL BEST</span><span class="value" id="go-best">0</span><span class="unit">M</span></div>
+          <div class="row best"><span class="label">PERSONAL BEST</span><span class="value" id="go-best">0</span><span class="unit">KM</span></div>
         </div>
         <div class="btn-row">
-          <button id="btn-playagain" class="btn btn-primary">PLAY AGAIN</button>
+          <button id="btn-playagain" class="btn btn-primary">RESTART</button>
           <button id="btn-mainmenu" class="btn">MAIN MENU</button>
         </div>
       </div>

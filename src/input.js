@@ -1,5 +1,5 @@
 /**
- * Input handling — keyboard (desktop) + touch buttons (mobile).
+ * Input handling — keyboard (desktop), touch buttons (mobile), and gamepad.
  * Normalizes everything into a small state object consumed by the car physics.
  */
 export class Input {
@@ -10,14 +10,17 @@ export class Input {
     this.handbrake = false;
     this.camera = false;     // edge-triggered toggle
     this.pause = false;      // edge-triggered toggle
+    this.fullscreen = false; // edge-triggered toggle
 
     this._steerLeft = false;
     this._steerRight = false;
     this._cameraEdge = false;
     this._pauseEdge = false;
+    this._fullscreenEdge = false;
 
     this.bindKeyboard();
     this.bindTouch();
+    this.bindGamepad();
   }
 
   bindKeyboard() {
@@ -31,6 +34,7 @@ export class Input {
       if (k === ' ') { this.handbrake = true; e.preventDefault(); }
       if (k === 'c') { this._cameraEdge = true; }
       if (k === 'escape') { this._pauseEdge = true; }
+      if (k === 'f11' || k === 'f') { this._fullscreenEdge = true; }
     };
     const up = (e) => {
       const k = e.key.toLowerCase();
@@ -52,7 +56,6 @@ export class Input {
   }
 
   bindTouch() {
-    // Stop the page from scrolling / zooming while playing
     const viewport = document.getElementById('game-viewport');
     viewport.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
 
@@ -74,21 +77,52 @@ export class Input {
 
     document.querySelectorAll('[data-act]').forEach((btn) => {
       const act = btn.dataset.act;
-      btn.addEventListener('touchstart', (e) => { e.preventDefault(); press(act); });
-      btn.addEventListener('touchend', (e) => { e.preventDefault(); release(act); });
-      btn.addEventListener('touchcancel', (e) => { e.preventDefault(); release(act); });
-      // mouse fallback for desktop testing
-      btn.addEventListener('mousedown', (e) => { e.preventDefault(); press(act); });
-      btn.addEventListener('mouseup', (e) => { e.preventDefault(); release(act); });
-      btn.addEventListener('mouseleave', (e) => release(act));
+      const on = (e) => { e.preventDefault(); press(act); };
+      const off = (e) => { e.preventDefault(); release(act); };
+      btn.addEventListener('touchstart', on, { passive: false });
+      btn.addEventListener('touchend', off, { passive: false });
+      btn.addEventListener('touchcancel', off, { passive: false });
+      btn.addEventListener('mousedown', on);
+      btn.addEventListener('mouseup', off);
+      btn.addEventListener('mouseleave', release);
     });
+  }
+
+  bindGamepad() {
+    // Gamepad is polled in tick(); no listeners needed.
+  }
+
+  readGamepad() {
+    const gp = navigator.getGamepads ? navigator.getGamepads()[0] : null;
+    if (!gp) return;
+    // Left stick horizontal -> steer
+    const stick = gp.axes[0];
+    if (Math.abs(stick) > 0.2) {
+      this.steer = stick;
+      if (stick < 0) { this._steerLeft = true; this._steerRight = false; }
+      else { this._steerLeft = false; this._steerRight = true; }
+    } else {
+      this._steerLeft = false;
+      this._steerRight = false;
+      this.steer = 0;
+    }
+    // Right trigger (accel) / Left trigger (brake)
+    this.accel = gp.axes[5] > 0.3;   // right trigger
+    this.brake = gp.axes[4] > 0.3;   // left trigger
+    // Buttons
+    this.handbrake = gp.buttons[1]?.pressed || gp.buttons[0]?.pressed; // B or A
+    if (gp.buttons[1]?.pressed) this._cameraEdge = true; // B -> camera
+    if (gp.buttons[9]?.pressed) this._pauseEdge = true;  // Start -> pause
   }
 
   /** Call once per frame to consume edge-triggered inputs. */
   tick() {
+    this.readGamepad();
     this.camera = this._cameraEdge;
     this._cameraEdge = false;
     this.pause = this._pauseEdge;
     this._pauseEdge = false;
+    this.fullscreen = this._fullscreenEdge;
+    this._fullscreenEdge = false;
   }
 }
