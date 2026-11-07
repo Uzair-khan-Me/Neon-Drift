@@ -5,13 +5,13 @@ import * as THREE from 'three';
 
 export class Camera {
   constructor() {
-    this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.3, 2000);
+    this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.3, 2500);
     this.camera.position.set(0, 5.5, -9);
     this.mode = 'chase'; // 'chase' | 'cockpit'
 
     this.shake = 0;
     this.shakeIntensity = 0;
-    this.dashboard = null; // Three.Group locked to camera view (cockpit)
+    this.dashboard = null; // locked to camera view (cockpit)
   }
 
   setMode(mode) {
@@ -25,31 +25,35 @@ export class Camera {
   update(dt, car) {
     const forward = car.forward;
     const right = car.right;
-    const pos = car.group.position;
+    const pos = car.position;
     const kmh = car.speedKmh;
 
     let targetPos, targetLook;
 
     if (this.mode === 'cockpit') {
-      const seat = new THREE.Vector3(0.18, 1.02, 0.55);
+      // Driver's seat (right-hand drive position slightly offset)
+      const seat = new THREE.Vector3(0.25, 1.12, 0.62);
       const worldOff = seat.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), car.yaw);
       targetPos = pos.clone().add(worldOff);
-      targetLook = pos.clone().add(forward.clone().multiplyScalar(16));
-      targetLook.y += 0.5;
-      targetLook.add(right.clone().multiplyScalar(car.steerInput * 3));
+      targetLook = pos.clone().add(forward.clone().multiplyScalar(18));
+      targetLook.y += 0.55;
+      // Look into the turn slightly
+      targetLook.add(right.clone().multiplyScalar(car.steerInput * 3.5));
     } else {
-      const back = 9.5 + Math.min(kmh / 20, 5);
-      const height = 5.4 + Math.min(kmh / 120, 1.6);
+      // Chase: behind & above, further at speed, outside of turn
+      const back = 9.0 + Math.min(kmh / 22, 5.5);
+      const height = 5.2 + Math.min(kmh / 130, 1.8);
       targetPos = pos.clone()
         .add(forward.clone().multiplyScalar(-back))
         .add(new THREE.Vector3(0, height, 0));
-      targetPos.add(right.clone().multiplyScalar(-car.steerInput * Math.min(kmh / 80, 1) * 2.5));
+      targetPos.add(right.clone().multiplyScalar(-car.steerInput * Math.min(kmh / 85, 1) * 2.6));
       targetLook = pos.clone()
-        .add(forward.clone().multiplyScalar(kmh / 22 + 8))
-        .add(new THREE.Vector3(0, 1.5, 0));
+        .add(forward.clone().multiplyScalar(kmh / 24 + 9))
+        .add(new THREE.Vector3(0, 1.6, 0));
     }
 
-    this.camera.position.lerp(targetPos, dt * 6);
+    // Smooth follow
+    this.camera.position.lerp(targetPos, dt * 6.5);
     this.camera.lookAt(targetLook);
 
     if (this.dashboard) {

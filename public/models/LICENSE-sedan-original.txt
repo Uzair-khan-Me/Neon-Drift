@@ -1,0 +1,26 @@
+CarConcept.glb
+=============
+Source: Khronos glTF-Sample-Assets — Models/CarConcept
+URL: https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/CarConcept
+Direct: https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CarConcept/glTF-Binary/CarConcept.glb
+
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+Attribution (required):
+  © 2024 Darmstadt Graphics Group GmbH — model and textures by Eric Chadwick
+  Based on “FREE Concept Car 004” by Unity Fan (Sketchfab), CC0
+  © 2015 Khronos Group — Khronos logo (trademark)
+  © 2017 Khronos Group — 3D Commerce logo (trademark)
+
+Notes:
+  High-quality concept / grand-tourismo style vehicle (~213k triangles) with
+  clearcoat, transmission, emissive strength, iridescence, and material variants.
+  NOT a manufacturer OEM sedan (e.g. not Geely Xingrui). Used here as the highest
+  redistributable automotive glTF sample suitable for a realistic PBR car look.
+  Default paint variant selected in-app: “Torched Graphite”.
+
+sedan-original.glb (fallback, unused by default)
+===============================================
+Innerscene 3D Parts Library — Sedan car — CC0 1.0
+https://www.innerscene.com/tools/library/3d-parts/sedan-car-42109739

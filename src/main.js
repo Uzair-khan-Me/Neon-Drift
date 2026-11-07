@@ -1,6 +1,6 @@
 /**
- * Traffic Rush — main entry point.
- * Three.js renderer, state machine, game loop, rewards, collisions.
+ * Traffic Rush — realistic 3D driving game.
+ * Three.js renderer, asset loading, state machine, game loop, rewards, collisions.
  */
 import * as THREE from 'three';
 import { Input } from './input.js';
@@ -10,6 +10,7 @@ import { Traffic } from './traffic.js';
 import { Camera } from './camera.js';
 import { Audio } from './audio.js';
 import { HUD } from './hud.js';
+import { assetLoader } from './assetLoader.js';
 
 const STORAGE_KEY = 'traffic_rush_best';
 const MAX_SPEED_KMH = 260;
@@ -21,41 +22,40 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    // Physically based rendering & color management
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
 
     // ---------- Scenes ----------
     this.sceneGame = new THREE.Scene();
-    this.sceneGame.background = new THREE.Color(0x0e1115);
+    this.sceneGame.background = new THREE.Color(0x0f141a);
 
     this.sceneMenu = new THREE.Scene();
     this.sceneMenu.background = new THREE.Color(0x0b0d10);
 
     // ---------- Cameras ----------
     this.cam = new Camera();
-    this.menuCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.3, 2000);
-    this.menuCamera.position.set(0, 6, -13);
+    this.menuCamera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.3, 2500);
+    this.menuCamera.position.set(0, 6, -14);
     this.menuCamera.lookAt(0, 1.8, 0);
 
     // ---------- Entities ----------
     this.input = new Input();
     this.audio = new Audio();
-    this.car = new Car();
-    this.sceneMenu.add(this.car.group); // preview in menu
-
-    this.world = new World(this.sceneGame);
-    this.traffic = new Traffic(this.sceneGame);
+    this.car = null;       // created after model loads
+    this.world = null;
+    this.traffic = null;
 
     this.hud = new HUD();
 
-    // ---------- Cockpit dashboard (locked to camera view) ----------
     this.buildDashboard();
-
-    // ---------- Menu stage ----------
     this.buildMenuStage();
 
     // ---------- State ----------
-    this.state = 'MENU';
+    this.state = 'LOADING'; // LOADING | MENU | PLAYING | PAUSED | CRASHING | GAMEOVER
     this.clock = new THREE.Clock();
 
     this.distance = 0;
@@ -75,15 +75,33 @@ export class Game {
     // ---------- Bindings ----------
     this.onResize = this.onResize.bind(this);
     window.addEventListener('resize', this.onResize);
-
     this.bindMenuButtons();
-
-    // Fullscreen on click/tap of canvas
     this.canvas.addEventListener('click', () => this.requestFullscreen());
+
+    // Start loading assets, then show menu
+    assetLoader.load().then(() => {
+      this._onReady();
+    });
 
     this.loop();
   }
 
+  // ---------- Asset readiness ----------
+  _onReady() {
+    // Player car from GLB model
+    const carMesh = assetLoader.clone('player');
+    this.car = new Car(carMesh);
+    this.sceneGame.add(carMesh);
+
+    this.world = new World(this.sceneGame);
+    this.traffic = new Traffic(this.sceneGame);
+
+    this.state = 'MENU';
+    this.hud.menu(this.best);
+    document.getElementById('loading').style.display = 'none';
+  }
+
+  // ---------- Scenes ----------
   buildDashboard() {
     this.dashboard = new THREE.Group();
     this.sceneGame.add(this.dashboard);
@@ -91,65 +109,58 @@ export class Game {
 
     const dark = new THREE.MeshStandardMaterial({ color: 0x14181c, roughness: 0.6, metalness: 0.6 });
     const glass = new THREE.MeshStandardMaterial({ color: 0x223344, transparent: true, opacity: 0.5 });
-    const amber = new THREE.MeshStandardMaterial({ color: 0xbfa86e, emissive: 0x3d2d10, emissiveIntensity: 0.5 });
+    const amber = new THREE.MeshStandardMaterial({ color: 0xbfa86e, emissive: 0x3d2d10, emissiveIntensity: 0.6 });
 
-    // Dashboard panel
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.5, 0.22), dark);
-    panel.position.y = -0.3;
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.5, 0.22), dark);
+    panel.position.y = -0.32;
     this.dashboard.add(panel);
 
-    // Gauge faces
     const gauge = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.52, 0.23), glass);
-    gauge.position.set(-0.62, -0.3, 0.12);
+    gauge.position.set(-0.66, -0.32, 0.12);
     this.dashboard.add(gauge);
     const gauge2 = gauge.clone();
-    gauge2.position.set(0.62, -0.3, 0.12);
+    gauge2.position.set(0.66, -0.32, 0.12);
     this.dashboard.add(gauge2);
 
-    // Amber accent strip
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.05, 0.24), amber);
-    strip.position.y = -0.56;
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.06, 0.24), amber);
+    strip.position.y = -0.58;
     this.dashboard.add(strip);
 
-    // Steering wheel
-    const wheelGeo = new THREE.TorusGeometry(0.44, 0.045, 16, 48);
+    const wheelGeo = new THREE.TorusGeometry(0.46, 0.05, 16, 48);
     wheelGeo.rotateX(Math.PI / 2);
     this.wheelMesh = new THREE.Mesh(wheelGeo, dark);
-    this.wheelMesh.position.set(0, -0.62, 0.55);
+    this.wheelMesh.position.set(0, -0.66, 0.58);
     this.dashboard.add(this.wheelMesh);
 
-    const column = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8), dark);
-    column.position.set(0, -0.95, 0.55);
+    const column = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.55, 8), dark);
+    column.position.set(0, -1.02, 0.58);
     this.dashboard.add(column);
   }
 
   buildMenuStage() {
-    // Floor
     const floor = new THREE.Mesh(
-      new THREE.PlaneGeometry(60, 60),
-      new THREE.MeshStandardMaterial({ color: 0x161a1f, roughness: 0.9, metalness: 0.1 })
+      new THREE.PlaneGeometry(70, 70),
+      new THREE.MeshStandardMaterial({ color: 0x1a2026, roughness: 0.9, metalness: 0.1 })
     );
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     this.sceneMenu.add(floor);
 
-    // Road patch behind the car
     const road = new THREE.Mesh(
-      new THREE.PlaneGeometry(16, 40),
-      new THREE.MeshStandardMaterial({ color: 0x2b2f34, roughness: 0.95, metalness: 0.15 })
+      new THREE.PlaneGeometry(18, 45),
+      new THREE.MeshStandardMaterial({ color: 0x2b2f34, roughness: 0.95, metalness: 0.1 })
     );
     road.rotation.x = -Math.PI / 2;
-    road.position.set(6, 0.03, 2);
+    road.position.set(7, 0.03, 0);
     this.sceneMenu.add(road);
 
-    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 4), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     line.rotation.x = -Math.PI / 2;
-    line.position.set(6, 0.04, 2);
+    line.position.set(7, 0.04, 0);
     this.sceneMenu.add(line);
 
-    // Lights
     const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-    sun.position.set(20, 25, 10);
+    sun.position.set(20, 30, 10);
     sun.castShadow = true;
     this.sceneMenu.add(sun);
     this.sceneMenu.add(new THREE.AmbientLight(0xffffff, 0.35));
@@ -183,12 +194,13 @@ export class Game {
       this.audio.setEnabled(document.getElementById('sound-toggle').checked);
     });
 
-    // Reset car
-    this.car.group.position.set(0, 0, 10);
+    // Reset car: right-hand player lane, facing +Z (tyres on the road)
+    this.car.position.set(7.5, 0.02, 12);
     this.car.velocity.set(0, 0, 0);
     this.car.yaw = 0;
     this.car.steerInput = 0;
-    this.car.group.rotation.set(0, 0, 0);
+    this.car.mesh.rotation.set(0, 0, 0);
+    this.car.mesh.position.copy(this.car.position);
 
     // Reset stats
     this.distance = 0;
@@ -201,11 +213,10 @@ export class Game {
     this.highSpeedTimer = 0;
     this.cleanOvertakeTimer = 0;
     this.gameOverTimer = 0;
+    this._brakeCooldown = 0;
 
-    // Traffic ahead of the player
-    this.traffic.init(10);
-
-    this.sceneGame.add(this.car.group); // move car from menu scene to game scene
+    // Traffic ahead
+    this.traffic.init(12);
 
     this.state = 'PLAYING';
     this.hud.playing();
@@ -214,7 +225,7 @@ export class Game {
   goToMenu() {
     this.state = 'MENU';
     this.audio.engine(0, 0);
-    this.sceneMenu.add(this.car.group);
+    this.sceneMenu.add(this.car.mesh);
     this.hud.menu(this.best);
   }
 
@@ -222,7 +233,7 @@ export class Game {
     if (this.state !== 'PLAYING') return;
     this.state = 'CRASHING';
     this.gameOverTimer = 0.5;
-    this.cam.shakeCamera(1.4);
+    this.cam.shakeCamera(1.5);
     this.hud.flashCrash();
     this.audio.impact();
   }
@@ -278,7 +289,7 @@ export class Game {
     }
 
     const playerBox = this.car.getBounds();
-    const carPos = this.car.group.position;
+    const carPos = this.car.position;
 
     for (const v of traffic.vehicles) {
       // Collision
@@ -287,31 +298,29 @@ export class Game {
         return;
       }
 
-      // Overtake: player was behind, now ahead of the vehicle
+      // Overtake
       const dz = carPos.z - v.z;
       const vspeedKmh = v.speed * 3.6;
       const overtaking = kmh > vspeedKmh + 8;
 
-      if (!v.passed && dz > 12 && overtaking) {
+      if (!v.passed && dz > 14 && overtaking) {
         v.passed = true;
         this.overtakes++;
         this.score += 150;
-
-        // Clean overtake bonus (not a near miss)
         if (!v.nearMissed) {
           this.cleanOvertakeTimer = 0.8;
           this.score += 60;
         }
       }
 
-      // Near miss: close lateral pass at speed
-      const dx = Math.abs(carPos.x - v.mesh.position.x);
-      if (!v.nearMissed && dx < 4.2 && dz > 0 && dz < 16 && kmh > vspeedKmh + 6 && kmh > 50) {
+      // Near miss
+      const dx = Math.abs(carPos.x - v.vehicle.position.x);
+      if (!v.nearMissed && dx < 4.4 && dz > 0 && dz < 18 && kmh > vspeedKmh + 6 && kmh > 50) {
         v.nearMissed = true;
         this.nearMisses++;
         this.score += 200;
       }
-      if (dz < -20) {
+      if (dz < -22) {
         v.nearMissed = false;
         v.passed = false;
       }
@@ -333,24 +342,27 @@ export class Game {
   update(dt) {
     this.input.tick();
 
-    // Fullscreen
     if (this.input.fullscreen) this.requestFullscreen();
 
-    // Camera toggle
-    if (this.input.camera && this.state === 'PLAYING') {
-      this.cam.setMode(this.cam.mode === 'chase' ? 'cockpit' : 'chase');
-    }
-
-    // Pause toggle
-    if (this.input.pause) {
-      if (this.state === 'PLAYING') this.state = 'PAUSED';
-      else if (this.state === 'PAUSED') this.state = 'PLAYING';
+    if (this.state === 'PLAYING') {
+      if (this.input.camera) {
+        this.cam.setMode(this.cam.mode === 'chase' ? 'cockpit' : 'chase');
+      }
+      if (this.input.pause) {
+        this.state = 'PAUSED';
+        this.hud.pause();
+      }
+    } else if (this.state === 'PAUSED') {
+      if (this.input.pause) {
+        this.state = 'PLAYING';
+        this.hud.playing();
+      }
     }
 
     if (this.state === 'PLAYING') {
       this.car.update(dt, this.input);
-      this.world.update(this.car.group.position.z);
-      this.traffic.step(dt, this.car.group.position.z);
+      this.world.update(this.car.position.z);
+      this.traffic.step(dt, this.car.position.z);
       this.cam.update(dt, this.car);
 
       const kmh = this.car.speedKmh;
@@ -374,8 +386,11 @@ export class Game {
     } else if (this.state === 'MENU') {
       this.audio.engine(0, 0);
       const time = performance.now() * 0.001;
-      this.car.group.rotation.y += 0.12 * dt;
-      this.car.group.position.y = Math.sin(time * 1.2) * 0.04;
+      if (this.car) {
+        this.car.yaw += 0.12 * dt;
+        this.car.mesh.rotation.y = this.car.yaw;
+        this.car.mesh.position.y = 0.3 + Math.sin(time * 1.2) * 0.04;
+      }
       this.hud.update(this.car, {
         distance: 0, score: 0, nearMisses: 0, overtakes: 0,
         highSpeedActive: false, cleanOvertakeActive: false,
@@ -385,17 +400,19 @@ export class Game {
     }
 
     // Dashboard locked to cockpit camera view
-    const camForward = new THREE.Vector3();
-    this.cam.camera.getWorldDirection(camForward);
-    this.dashboard.position.copy(this.cam.camera.position).addScaledVector(camForward, 0.55);
-    this.dashboard.quaternion.copy(this.cam.camera.quaternion);
-    if (this.wheelMesh) {
-      this.wheelMesh.rotation.z = -this.car.steerInput * 0.6;
+    if (this.dashboard && this.cam.camera) {
+      const camForward = new THREE.Vector3();
+      this.cam.camera.getWorldDirection(camForward);
+      this.dashboard.position.copy(this.cam.camera.position).addScaledVector(camForward, 0.55);
+      this.dashboard.quaternion.copy(this.cam.camera.quaternion);
+      if (this.wheelMesh) {
+        this.wheelMesh.rotation.z = -(this.car ? this.car.steerInput : 0) * 0.6;
+      }
     }
   }
 
   render() {
-    if (this.state === 'MENU') {
+    if (this.state === 'LOADING' || this.state === 'MENU') {
       this.renderer.render(this.sceneMenu, this.menuCamera);
     } else {
       this.renderer.render(this.sceneGame, this.cam.camera);
