@@ -27,6 +27,7 @@ export class Car extends Vehicle {
     // ---------- Physics state ----------
     this.velocity = new THREE.Vector3(); // world-space m/s
     this.speedKmh = 0;
+    this.signedSpeedKmh = 0;
     this.steerInput = 0;   // -1..1 smoothed steering
     this.gear = 'N';
     this.rpm = 0;
@@ -36,8 +37,9 @@ export class Car extends Vehicle {
     this.mass = 1600;            // kg
     this.maxForce = 12500;       // N peak at wheels
     this.brakeForce = 26000;     // N
-    this.reverseForce = 5500;    // N
-    this.maxSpeed = 62;          // m/s (~223 km/h)
+    this.reverseForce = 5500;     // N
+    this.reverseSpeedLimit = 5.6; // m/s (~20 km/h)
+    this.maxSpeed = 62;           // m/s (~223 km/h)
     this.dragLinear = 0.8;       // N per (m/s)
     this.dragQuad = 0.85;        // N per (m/s)^2
     this.rollResist = 210;       // N
@@ -55,36 +57,51 @@ export class Car extends Vehicle {
 
   /** Advance physics by dt seconds and refresh visuals. */
   update(dt, input) {
-    const kmh = this.getSpeedKmh();
-    this.speedKmh = kmh;
-
     const forward = this.forward;
     const right = this.right;
     const speed = this.velocity.length();
-    const vsign = speed > 0.01 ? this.velocity.dot(forward) / speed : 1;
+
+    // Signed longitudinal speed: negative when moving backwards relative to car heading
+    const signedSpeedMs = speed > 0.01 ? this.velocity.dot(forward) : 0;
+    const signedSpeedKmh = signedSpeedMs * 3.6;
+    this.speedKmh = Math.abs(signedSpeedKmh);
+    this.signedSpeedKmh = signedSpeedKmh;
 
     // ---------- Drivetrain ----------
     let engineForce = 0;
-    const reversing = kmh < 1.5 && input.brake && !input.accel;
 
-    if (reversing) {
-      engineForce = -this.reverseForce;
-      this.gear = 'R';
-      this.rpm = Math.min(1, kmh / 40);
+    const wantReverse = input.rev || (!input.accel && input.brake && speed < 0.5);
+    const wantForward = input.accel && !input.rev;
+
+    if (wantReverse) {
+      const reverseSpeedLimitKmh = this.reverseSpeedLimit * 3.6;
+
+      if (signedSpeedMs > 0.1) {
+        // Moving forward: brake to a stop before reversing
+        engineForce = -this.brakeForce;
+        this.gear = 'N';
+      } else if (signedSpeedKmh > -reverseSpeedLimitKmh) {
+        engineForce = -this.reverseForce;
+        this.gear = 'R';
+      } else {
+        engineForce = 0;
+        this.gear = 'R';
+      }
+      this.rpm = Math.min(1, Math.abs(signedSpeedKmh) / 40 + 0.1);
       this.engineLoad = 0.6;
-    } else if (input.accel && kmh < this.maxSpeed * 3.6) {
-      const taper = Math.max(0, 1 - kmh / (this.maxSpeed * 3.6));
+    } else if (wantForward && signedSpeedKmh < this.maxSpeed * 3.6) {
+      const taper = Math.max(0, 1 - signedSpeedKmh / (this.maxSpeed * 3.6));
       engineForce = this.maxForce * taper;
-      this.gear = this.gearFromSpeed(kmh);
-      this.rpm = Math.min(1, kmh / (this.maxSpeed * 3.6) + 0.12);
+      this.gear = 'D';
+      this.rpm = Math.min(1, signedSpeedKmh / (this.maxSpeed * 3.6) + 0.12);
       this.engineLoad = Math.min(1, 0.3 + taper * 0.7);
-    } else if (input.brake && kmh > 1.5) {
-      engineForce = -this.brakeForce * vsign;
-      this.gear = this.gearFromSpeed(kmh);
+    } else if (input.brake && signedSpeedMs > 0.1) {
+      engineForce = -this.brakeForce;
+      this.gear = signedSpeedKmh < 6 ? 'N' : 'D';
       this.rpm = Math.max(0.08, this.rpm - dt * 2.0);
       this.engineLoad = 0.15;
     } else {
-      this.gear = kmh < 6 ? 'N' : this.gearFromSpeed(kmh);
+      this.gear = Math.abs(signedSpeedKmh) < 6 ? 'N' : 'D';
       this.rpm = Math.max(0.06, this.rpm - dt * 2.5);
       this.engineLoad = 0.12;
     }
@@ -102,8 +119,9 @@ export class Car extends Vehicle {
     this.steerInput += (input.steer - this.steerInput) * this.steerReturn * dt;
 
     // Speed-dependent sensitivity: less reactive at high speed
+    const kmh = this.speedKmh;
     const sens = Math.max(0.3, 1.1 - kmh / 220);
-    const steerAngle = this.steerInput * this.maxSteerAngle * sens;
+    const steerAngle = -this.steerInput * this.maxSteerAngle * sens;
 
     // Bicycle model yaw rate
     const yawRate = (speed * Math.tan(steerAngle) / this.wheelBase);
@@ -146,21 +164,15 @@ export class Car extends Vehicle {
   }
 
   getSpeedKmh() {
-    return this.velocity.length() * 3.6;
+    return this.speedKmh;
   }
 
-  gearFromSpeed(kmh) {
-    if (kmh < 15) return 1;
-    if (kmh < 40) return 2;
-    if (kmh < 70) return 3;
-    if (kmh < 100) return 4;
-    if (kmh < 135) return 5;
-    return 6;
+  getSignedSpeedKmh() {
+    return this.signedSpeedKmh;
   }
 
-  /** Brake-light state: true when braking hard or reversing. */
+  /** Brake-light state: true when braking or reversing. */
   get braking() {
-    const kmh = this.getSpeedKmh();
-    return kmh > 3 && (this.gear === 'R' || this.velocity.length() > 0);
+    return this.speedKmh > 3 && (this.gear === 'R' || this.velocity.length() > 0.1);
   }
 }

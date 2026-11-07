@@ -211,6 +211,7 @@ export class Game {
     this.car.velocity.set(0, 0, 0);
     this.car.yaw = 0;
     this.car.steerInput = 0;
+    this.car.signedSpeedKmh = 0;
     this.car.mesh.rotation.set(0, 0, 0);
     this.car.mesh.position.copy(this.car.position);
 
