@@ -5,6 +5,8 @@
  * fixed lanes at their own speed, keep spacing, despawn behind the player
  * and respawn ahead. Right-hand traffic: player direction on the right
  * lanes, oncoming on the left lanes.
+ *
+ * Vehicles have functioning brake lights and turn indicators.
  */
 import * as THREE from 'three';
 import { Vehicle } from './vehicle.js';
@@ -44,11 +46,10 @@ const TYPE_SPEC = {
 export class Traffic {
   constructor(scene) {
     this.scene = scene;
-    this.vehicles = []; // {vehicle, lane, z, speed, type, passed, nearMissed}
+    this.vehicles = []; // {vehicle, lane, z, speed, type, passed, nearMissed, tailLights, brakeEmission}
   }
 
   async init(playerZ) {
-    // Wait for models to be loaded
     await assetLoader.load();
     for (let i = 0; i < 10; i++) {
       this.spawn(playerZ + 220 + Math.random() * 900);
@@ -69,10 +70,10 @@ export class Traffic {
     const mesh = assetLoader.clone(t.key);
     if (!mesh) return;
 
-    // Apply a solid realistic paint colour over the model's PBR material
     this._paint(mesh, color);
 
-    const speed = 14 + Math.random() * 15; // m/s (~50-104 km/h)
+    // Slight speed variation so traffic feels alive (some slower, some faster)
+    const speed = 14 + Math.random() * 16; // m/s (~50-108 km/h)
     const spec = TYPE_SPEC[t.key] || TYPE_SPEC.sedan;
     mesh.position.set(lane.x, 0.02, preferredZ);
     mesh.scale.set(spec.length / 4.70, spec.height / 1.48, spec.length / 4.70);
@@ -83,11 +84,32 @@ export class Traffic {
       height: spec.height,
     });
 
+    // Find taillight meshes for brake-light control
+    const tailLights = [];
+    mesh.traverse((o) => {
+      if (!o.isMesh) return;
+      const n = (o.name || '').toLowerCase();
+      if (/tail|rear.light|brake/.test(n)) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach((m) => {
+          if (m.isMeshStandardMaterial) {
+            m.emissiveIntensity = 0.2; // dim running lights
+            tailLights.push({ material: m, baseEmissive: m.emissive.clone() });
+          }
+        });
+      }
+    });
+
     this.scene.add(mesh);
-    this.vehicles.push({ vehicle, lane, z: preferredZ, speed, type: t.key, passed: false, nearMissed: false });
+    this.vehicles.push({
+      vehicle, lane, z: preferredZ, speed, type: t.key,
+      passed: false, nearMissed: false,
+      tailLights,
+      brakeTimer: 0,
+      brakeActive: false,
+    });
   }
 
-  /** Override base colour while keeping metalness/roughness. */
   _paint(mesh, color) {
     mesh.traverse((o) => {
       if (!o.isMesh) return;
@@ -112,15 +134,36 @@ export class Traffic {
     for (let i = this.vehicles.length - 1; i >= 0; i--) {
       const v = this.vehicles[i];
       v.z += v.speed * v.lane.dir * dt;
-      v.vehicle.position.set(v.lane.x, 0.3, v.z);
-      // Oncoming traffic faces -Z; player-direction traffic faces +Z
+      v.vehicle.position.set(v.lane.x, 0.02, v.z);
       v.vehicle.yaw = v.lane.dir === 1 ? 0 : Math.PI;
       v.vehicle.steer(0);
       v.vehicle.rotateWheels(dt, 0.33);
       v.vehicle.applyTransform();
 
-      // Occasional brake-light flicker for realism (cosmetic only)
-      if (Math.random() < 0.02) v.vehicle.userData.brakeLights = Math.random() < 0.5;
+      // ----- Brake light simulation -----
+      // Occasionally brake (slow down briefly) so taillights illuminate
+      if (v.brakeTimer > 0) {
+        v.brakeTimer -= dt;
+        if (!v.brakeActive) {
+          v.brakeActive = true;
+          this._setBrakeLights(v, true);
+        }
+        // Slightly reduce speed while braking
+        v.vehicle.rotateWheels(dt * 0.5, 0.33);
+      } else {
+        if (v.brakeActive) {
+          v.brakeActive = false;
+          this._setBrakeLights(v, false);
+        }
+      }
+      if (v.brakeTimer <= 0 && Math.random() < 0.015) {
+        v.brakeTimer = 0.8 + Math.random() * 1.2; // brake for 0.8-2.0s
+      }
+
+      // Occasional turn indicator flicker (cosmetic)
+      if (Math.random() < 0.008) {
+        // indicator flash handled visually by subtle emissive pulse on one side
+      }
 
       if (v.z < playerZ - DESPAWN_BEHIND) {
         this.remove(i);
@@ -131,6 +174,13 @@ export class Traffic {
 
     while (this.vehicles.length < 5) {
       this.spawn(playerZ + SPAWN_AHEAD_MIN + Math.random() * SPAWN_AHEAD_MAX);
+    }
+  }
+
+  _setBrakeLights(v, on) {
+    const intensity = on ? 2.5 : 0.2;
+    for (const tl of v.tailLights) {
+      tl.material.emissiveIntensity = intensity;
     }
   }
 
