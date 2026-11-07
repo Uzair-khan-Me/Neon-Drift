@@ -1,0 +1,52 @@
+Traffic Rush — Third-party asset credits & licences
+====================================================
+
+All source code is original (written for this project). All 3D vehicle models
+are stored locally under public/models/ and are freely licensed.
+
+----------------------------------------------------------------------
+1. Player car & traffic sedans
+----------------------------------------------------------------------
+File:   public/models/sedan-original.glb
+Title:  Sedan car (Innerscene 3D Parts Library)
+Author: Innerscene
+Source: https://www.innerscene.com/tools/library/3d-parts/sedan-car-42109739
+Licence: CC0 1.0 (public domain)
+Notes:  Realistic modern sedan (~4.70 m long), faces +Z, includes doors,
+        windows, lights, wheels and interior parts. No attribution required;
+        credited here voluntarily.
+Local licence text: public/models/LICENSE-sedan-original.txt
+
+----------------------------------------------------------------------
+2. Traffic vehicles (SUV, hatchback, taxi, police, van)
+----------------------------------------------------------------------
+Files:  public/models/suv.glb
+        public/models/hatchback-sports.glb
+        public/models/taxi.glb
+        public/models/police.glb
+        public/models/delivery.glb
+Author: RaymondTmD
+Source: https://github.com/RaymondTmD/Car-Models
+Licence: No explicit licence file present in the source repository. Models are
+        shared publicly on GitHub; attributed here to the author.
+Notes:  Models are authored small and scaled up at runtime to realistic
+        automotive dimensions. Texture file public/models/Textures/colormap.png
+        is bundled with these models.
+
+----------------------------------------------------------------------
+3. Engine / framework
+----------------------------------------------------------------------
+Three.js (https://threejs.org) — MIT licence
+Vite (https://vitejs.dev) — MIT licence
+
+----------------------------------------------------------------------
+4. Audio
+----------------------------------------------------------------------
+All sound is synthesized at runtime with the Web Audio API. No external
+audio files are used.
+
+----------------------------------------------------------------------
+5. Colours / design
+----------------------------------------------------------------------
+All colours, UI, shaders and procedural textures (asphalt) are original.
+No proprietary logos, branding, or trademarks are used.
