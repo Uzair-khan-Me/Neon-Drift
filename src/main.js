@@ -194,6 +194,18 @@ export class Game {
       this.audio.setEnabled(document.getElementById('sound-toggle').checked);
     });
 
+    // Defensive: never start with a missing car mesh
+    if (!this.car || !this.car.mesh) {
+      console.error('[Game] cannot start run: player car is missing');
+      return;
+    }
+
+    // Ensure the car mesh is in the game scene (it may have been moved to
+    // the menu scene by goToMenu(); an object can only have one parent).
+    if (this.car.mesh.parent !== this.sceneGame) {
+      this.sceneGame.add(this.car.mesh);
+    }
+
     // Reset car: right-hand player lane, facing +Z (tyres on the road)
     this.car.position.set(7.5, 0.02, 12);
     this.car.velocity.set(0, 0, 0);
