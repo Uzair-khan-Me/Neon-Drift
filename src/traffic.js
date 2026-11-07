@@ -20,18 +20,18 @@ const LANES = [
 ];
 
 const DESPAWN_BEHIND = 360;
-const SPAWN_AHEAD_MIN = 260;
-const SPAWN_AHEAD_MAX = 800;
+const SPAWN_AHEAD_MIN = 180;
+const SPAWN_AHEAD_MAX = 600;
 const MAX_VEHICLES = 18;
 
-// Traffic type -> model key + colour variants (realistic automotive palette)
+// Traffic type -> model key + colour variants (visible daytime automotive palette)
 const TYPES = [
-  { key: 'sedan',  colors: [0x1a252f, 0xffffff, 0x7f8c8d, 0x2c3e50, 0x143a2e] },
-  { key: 'suv',    colors: [0x2c3e50, 0x7f8c8d, 0x1a252f, 0xffffff] },
-  { key: 'hatch',  colors: [0xe67e22, 0xc0392b, 0xffffff, 0x7f8c8d] },
+  { key: 'sedan',  colors: [0xffffff, 0xe8edf0, 0xc0d6e4, 0xf5f5f5, 0xd8d8d8] },
+  { key: 'suv',    colors: [0xe8edf0, 0xc0d6e4, 0xffffff, 0xd8d8d8, 0xe8e8e8] },
+  { key: 'hatch',  colors: [0xe67e22, 0xf1c40f, 0xffffff, 0xc0d6e4, 0xe8e8e8] },
   { key: 'taxi',   colors: [0xf1c40f, 0xffffff] },
-  { key: 'police', colors: [0x1a252f, 0xffffff] },
-  { key: 'van',    colors: [0xd5dbdb, 0x7f8c8d, 0x2c3e50] },
+  { key: 'police', colors: [0xffffff, 0xe8edf0] },
+  { key: 'van',    colors: [0xd5dbdb, 0xffffff, 0xc0d6e4] },
 ];
 
 const TYPE_SPEC = {
@@ -51,8 +51,12 @@ export class Traffic {
 
   async init(playerZ) {
     await assetLoader.load();
-    for (let i = 0; i < 10; i++) {
-      this.spawn(playerZ + 220 + Math.random() * 900);
+    // Place at least 3 vehicles clearly ahead of the player at the start
+    this.spawn(playerZ + 180 + Math.random() * 120);
+    this.spawn(playerZ + 320 + Math.random() * 120);
+    this.spawn(playerZ + 480 + Math.random() * 120);
+    for (let i = 0; i < 7; i++) {
+      this.spawn(playerZ + 220 + Math.random() * 700);
     }
   }
 
@@ -73,7 +77,7 @@ export class Traffic {
     this._paint(mesh, color);
 
     // Slight speed variation so traffic feels alive (some slower, some faster)
-    const speed = 14 + Math.random() * 16; // m/s (~50-108 km/h)
+    const speed = 12 + Math.random() * 14; // m/s (~43-90 km/h)
     const spec = TYPE_SPEC[t.key] || TYPE_SPEC.sedan;
     mesh.position.set(lane.x, 0.02, preferredZ);
     mesh.scale.set(spec.length / 4.70, spec.height / 1.48, spec.length / 4.70);

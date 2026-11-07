@@ -31,7 +31,7 @@ export class Game {
 
     // ---------- Scenes ----------
     this.sceneGame = new THREE.Scene();
-    this.sceneGame.background = new THREE.Color(0x0f141a);
+    this.sceneGame.background = new THREE.Color(0xb8d4f0);
 
     this.sceneMenu = new THREE.Scene();
     this.sceneMenu.background = new THREE.Color(0x0b0d10);
