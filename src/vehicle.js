@@ -27,12 +27,17 @@ export class Vehicle {
     this.yaw = 0; // radians, +Z is forward
     this.speed = 0; // m/s (signed)
 
+    // Direction vectors derived from yaw (forward = +Z at yaw 0)
+    this.forward = new THREE.Vector3(0, 0, 1);
+    this.right = new THREE.Vector3(1, 0, 0);
+
     // Wheel sub-mesh references (for rotation & steering)
     this.wheelMeshes = []; // {mesh, isFront, side(-1|1)}
     this._collectWheels();
 
     this.mesh.position.copy(this.position);
     this.mesh.rotation.y = this.yaw;
+    this._updateDirections();
   }
 
   /** Walk the model graph and find wheel meshes by name/shape. Classify
@@ -82,10 +87,17 @@ export class Vehicle {
     }
   }
 
+  /** Update forward/right direction vectors from current yaw. */
+  _updateDirections() {
+    this.forward.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
+    this.right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+  }
+
   /** Apply position + yaw to the mesh. */
   applyTransform() {
     this.mesh.position.copy(this.position);
     this.mesh.rotation.y = this.yaw;
+    this._updateDirections();
   }
 
   /** Collision box around the vehicle (tighter than visuals for forgiveness). */
