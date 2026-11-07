@@ -5,8 +5,8 @@ import * as THREE from 'three';
 
 export class Camera {
   constructor() {
-    this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.3, 2500);
-    this.camera.position.set(0, 5.5, -9);
+    this.camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.5, 3000);
+    this.camera.position.set(0, 6, -8);
     this.mode = 'chase'; // 'chase' | 'cockpit'
 
     this.shake = 0;
@@ -40,16 +40,17 @@ export class Camera {
       // Look into the turn slightly
       targetLook.add(right.clone().multiplyScalar(car.steerInput * 3.5));
     } else {
-      // Chase: behind & above, further at speed, outside of turn
-      const back = 9.0 + Math.min(kmh / 22, 5.5);
-      const height = 5.2 + Math.min(kmh / 130, 1.8);
+      // Chase: behind & above, car visible in lower center of screen
+      const back = 7.5 + Math.min(kmh / 25, 4.5);
+      const height = 4.8 + Math.min(kmh / 140, 1.5);
       targetPos = pos.clone()
         .add(forward.clone().multiplyScalar(-back))
         .add(new THREE.Vector3(0, height, 0));
-      targetPos.add(right.clone().multiplyScalar(-car.steerInput * Math.min(kmh / 85, 1) * 2.6));
+      targetPos.add(right.clone().multiplyScalar(-car.steerInput * Math.min(kmh / 90, 1) * 2.0));
+      // Look well ahead down the road, slightly above the horizon
       targetLook = pos.clone()
-        .add(forward.clone().multiplyScalar(kmh / 24 + 9))
-        .add(new THREE.Vector3(0, 1.6, 0));
+        .add(forward.clone().multiplyScalar(kmh / 20 + 14))
+        .add(new THREE.Vector3(0, 1.2, 0));
     }
 
     // Smooth follow

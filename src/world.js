@@ -50,8 +50,8 @@ function makeAsphaltTexture() {
   canvas.width = size; canvas.height = size;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
 
-  // ---- Base asphalt (dark charcoal grey) ----
-  ctx.fillStyle = '#262a2f';
+  // ---- Base asphalt (medium gray, daylight) ----
+  ctx.fillStyle = '#5a6570';
   ctx.fillRect(0, 0, size, size);
 
   // ---- Aggregate / stone speckles ----
@@ -94,10 +94,10 @@ function makeAsphaltTexture() {
     ctx.stroke();
   }
 
-  // ---- Vignette (darker at edges) ----
+  // ---- Vignette (subtle darker edges) ----
   const vignette = ctx.createRadialGradient(size / 2, size / 2, size * 0.25, size / 2, size / 2, size / 2);
   vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(1, 'rgba(0,0,0,0.25)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.12)');
   ctx.fillStyle = vignette;
   ctx.fillRect(0, 0, size, size);
 
@@ -131,59 +131,83 @@ export class World {
 
     this.buildLighting();
     this.buildSky();
+    this.buildGroundPlane();
 
     for (let i = 0; i < ACTIVE_SEGMENTS; i++) {
       this.addSegment(-SEG_LEN * i, 0);
     }
   }
 
+  /** Large ground plane beneath the road to eliminate any black void. */
+  buildGroundPlane() {
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(6000, 6000),
+      new THREE.MeshStandardMaterial({ color: 0x5d6b4d, roughness: 1.0, metalness: 0 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -0.5;
+    ground.receiveShadow = true;
+    ground.frustumCulled = false;
+    this.scene.add(ground);
+  }
+
   buildLighting() {
-    this.ambient = new THREE.AmbientLight(0xffffff, 0.5);
+    this.ambient = new THREE.AmbientLight(0xffffff, 0.85);
     this.scene.add(this.ambient);
 
-    // Natural sunlight — warm, directional, casts long soft shadows
-    this.sun = new THREE.DirectionalLight(0xfff4e6, 1.2);
-    this.sun.position.set(60, 80, 20);
+    // Natural sunlight — warm, bright directional daylight
+    this.sun = new THREE.DirectionalLight(0xfff5e1, 1.6);
+    this.sun.position.set(60, 90, 30);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.width = 2048;
     this.sun.shadow.mapSize.height = 2048;
     this.sun.shadow.camera.near = 0.5;
-    this.sun.shadow.camera.far = 400;
-    this.sun.shadow.camera.left = -160;
-    this.sun.shadow.camera.right = 160;
-    this.sun.shadow.camera.top = 160;
-    this.sun.shadow.camera.bottom = -160;
+    this.sun.shadow.camera.far = 600;
+    this.sun.shadow.camera.left = -240;
+    this.sun.shadow.camera.right = 240;
+    this.sun.shadow.camera.top = 240;
+    this.sun.shadow.camera.bottom = -240;
     this.sun.shadow.bias = -0.0005;
     this.sun.shadow.normalBias = 0.02;
     this.scene.add(this.sun);
 
-    this.hemi = new THREE.HemisphereLight(0x87aec0, 0x5a6a72, 0.35);
+    // Soft hemispheric sky fill light
+    this.hemi = new THREE.HemisphereLight(0x87ceeb, 0x6a7a82, 0.5);
     this.scene.add(this.hemi);
 
-    this.fog = new THREE.FogExp2(0x0f141a, 0.0009);
+    // Daytime atmospheric fog — matches sky, subtle depth
+    this.fog = new THREE.FogExp2(0xb8d4f0, 0.00035);
     this.scene.fog = this.fog;
   }
 
   buildSky() {
-    // Distant city skyline silhouette — varied building heights, no neon
+    // Distant city skyline — light-colored modern buildings, daytime lit
     const skyline = new THREE.Group();
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x1c2329, metalness: 0.2, roughness: 0.8
+      color: 0xe8edf0, metalness: 0.1, roughness: 0.6
     });
-    const ringR = 1800;
+    const roofMat = new THREE.MeshStandardMaterial({
+      color: 0x4a5560, roughness: 0.9, metalness: 0.1
+    });
+    const ringR = 2200;
     const segs = 32;
     for (let i = 0; i < segs; i++) {
       const a = (i / segs) * Math.PI * 2;
-      const h = 90 + Math.random() * 220;
-      const w = 70 + Math.random() * 90;
-      const d = 30 + Math.random() * 50;
+      const h = 120 + Math.random() * 300;
+      const w = 80 + Math.random() * 100;
+      const d = 40 + Math.random() * 60;
       const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
       b.position.set(Math.cos(a) * ringR, h / 2, Math.sin(a) * ringR);
       b.lookAt(0, h / 2, 0);
       b.castShadow = false; b.receiveShadow = true;
       skyline.add(b);
+
+      // Roof cap
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(w * 1.05, 3, d * 1.05), roofMat);
+      roof.position.set(0, h + 1.5, 0);
+      b.add(roof);
     }
-    skyline.position.y = -6;
+    skyline.position.y = -4;
     this.scene.add(skyline);
   }
 
@@ -209,7 +233,7 @@ export class World {
     // ============ SHOULDERS (concrete) ============
     const shoulder = new THREE.Mesh(
       new THREE.PlaneGeometry(90, SEG_LEN),
-      new THREE.MeshStandardMaterial({ color: 0x4a525a, roughness: 1.0, metalness: 0.04 })
+      new THREE.MeshStandardMaterial({ color: 0x8a929a, roughness: 1.0, metalness: 0.04 })
     );
     shoulder.rotation.x = -Math.PI / 2;
     shoulder.position.y = 0.03;
@@ -218,7 +242,7 @@ export class World {
 
     // ============ SIDEWALKS ============
     const sidewalkMat = new THREE.MeshStandardMaterial({
-      color: 0x3d4349, roughness: 0.95, metalness: 0.06
+      color: 0x7a8288, roughness: 0.95, metalness: 0.06
     });
     for (const sx of [-1, 1]) {
       const sw = new THREE.Mesh(new THREE.PlaneGeometry(3.2, SEG_LEN), sidewalkMat);
@@ -231,7 +255,7 @@ export class World {
       // Sidewalk curb
       const curb = new THREE.Mesh(
         new THREE.BoxGeometry(0.12, 0.1, SEG_LEN),
-        new THREE.MeshStandardMaterial({ color: 0x555d64, roughness: 0.9, metalness: 0.05 })
+        new THREE.MeshStandardMaterial({ color: 0x8a929a, roughness: 0.9, metalness: 0.05 })
       );
       curb.position.set(sx * (ROAD_WIDTH / 2 + 0.06), 0.09, 0);
       curb.position.z = baseZ;
@@ -253,7 +277,7 @@ export class World {
     // ============ MEDIAN DIVIDER (concrete with landscaping) ============
     const median = new THREE.Mesh(
       new THREE.BoxGeometry(1.4, 0.45, SEG_LEN),
-      new THREE.MeshStandardMaterial({ color: 0x3a4046, roughness: 0.85, metalness: 0.15 })
+      new THREE.MeshStandardMaterial({ color: 0x7a8288, roughness: 0.85, metalness: 0.15 })
     );
     median.position.set(0, 0.22, 0);
     median.castShadow = true; median.receiveShadow = true;
@@ -261,15 +285,15 @@ export class World {
 
     const medianTop = new THREE.Mesh(
       new THREE.BoxGeometry(1.2, 0.06, SEG_LEN),
-      new THREE.MeshStandardMaterial({ color: 0x555d65, roughness: 0.9, metalness: 0.1 })
+      new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.9, metalness: 0.1 })
     );
     medianTop.position.set(0, 0.46, 0);
     seg.add(medianTop);
 
     // Median trees (urban/suburban)
     if (zone === 'urban' || zone === 'suburban' || zone === 'outskirts') {
-      const mTrunk = new THREE.MeshStandardMaterial({ color: 0x3d3226, roughness: 0.9, metalness: 0 });
-      const mLeaf = new THREE.MeshStandardMaterial({ color: 0x2d5a3a, roughness: 0.9, metalness: 0 });
+      const mTrunk = new THREE.MeshStandardMaterial({ color: 0x5d5246, roughness: 0.9, metalness: 0 });
+      const mLeaf = new THREE.MeshStandardMaterial({ color: 0x4a8a3a, roughness: 0.9, metalness: 0 });
       for (let z = baseZ - SEG_LEN / 2 + 18; z < baseZ + SEG_LEN / 2; z += 40) {
         const side = (z / 40) % 2 < 1 ? -1 : 1;
         const mx = side * 0.75;
@@ -327,7 +351,7 @@ export class World {
     }
 
     // ============ CONCRETE BARRIERS AT ROAD EDGES ============
-    const barMat = new THREE.MeshStandardMaterial({ color: 0x3d4349, roughness: 0.7, metalness: 0.2 });
+    const barMat = new THREE.MeshStandardMaterial({ color: 0x8a929a, roughness: 0.7, metalness: 0.2 });
     for (const sx of [-17.4, 17.4]) {
       const barrier = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.0, SEG_LEN), barMat);
       barrier.position.set(sx, 0.5, 0);
@@ -336,14 +360,14 @@ export class World {
       // Barrier top cap
       const cap = new THREE.Mesh(
         new THREE.BoxGeometry(0.94, 0.05, SEG_LEN),
-        new THREE.MeshStandardMaterial({ color: 0x555d64, roughness: 0.8, metalness: 0.1 })
+        new THREE.MeshStandardMaterial({ color: 0xaaafb4, roughness: 0.8, metalness: 0.1 })
       );
       cap.position.set(sx, 1.02, 0);
       seg.add(cap);
     }
 
     // ============ GUARDRAIL POSTS ============
-    const postMat = new THREE.MeshStandardMaterial({ color: 0x556068, roughness: 0.8, metalness: 0.4 });
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x7a8288, roughness: 0.8, metalness: 0.4 });
     for (const sx of [-17.8, 17.8]) {
       for (let z = baseZ - SEG_LEN / 2 + 9; z < baseZ + SEG_LEN / 2; z += 10) {
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 6), postMat);
@@ -352,7 +376,7 @@ export class World {
         seg.add(post);
         const rail = new THREE.Mesh(
           new THREE.BoxGeometry(0.07, 0.05, 10),
-          new THREE.MeshStandardMaterial({ color: 0x4a525a, roughness: 0.8, metalness: 0.3 })
+          new THREE.MeshStandardMaterial({ color: 0x8a929a, roughness: 0.8, metalness: 0.3 })
         );
         rail.position.set(sx, 0.98, z);
         rail.castShadow = true;
@@ -361,8 +385,8 @@ export class World {
     }
 
     // ============ STREETLIGHTS ============
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x3b424a, roughness: 0.75, metalness: 0.85 });
-    const lampMat = new THREE.MeshStandardMaterial({ color: 0xffeadd, emissive: 0x2a1e10, emissiveIntensity: 0.15 });
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x6a727a, roughness: 0.75, metalness: 0.85 });
+    const lampMat = new THREE.MeshStandardMaterial({ color: 0xfff5e1, emissive: 0x3a2a10, emissiveIntensity: 0.2 });
     for (let z = baseZ - SEG_LEN / 2 + 30; z < baseZ + SEG_LEN / 2; z += 44) {
       for (const sx of [-19.2, 19.2]) {
         const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 8.4, 8), poleMat);
@@ -390,7 +414,7 @@ export class World {
       seg.add(pole);
       const signBack = new THREE.Mesh(
         new THREE.PlaneGeometry(1.8, 1.2),
-        new THREE.MeshStandardMaterial({ color: 0x2f3c46, roughness: 0.8, metalness: 0.1 })
+        new THREE.MeshStandardMaterial({ color: 0x5a6a72, roughness: 0.8, metalness: 0.1 })
       );
       signBack.position.set(sx, 4.3, sz + 0.02);
       signBack.castShadow = true;
@@ -416,7 +440,7 @@ export class World {
   /* ---------- terrain ---------- */
 
   _addTerrain(seg, rand, baseZ, len, zone) {
-    const grassColor = zone === 'countryside' ? 0x4a6b4a : 0x3d463d;
+    const grassColor = zone === 'countryside' ? 0x6a8a4a : 0x5d6b4d;
     const mat = new THREE.MeshStandardMaterial({
       color: grassColor, roughness: 1.0, metalness: 0
     });
@@ -459,7 +483,7 @@ export class World {
     }
     this._addTrees(seg, rand, baseZ, len, 3 + Math.floor(rand() * 5), 0x3a7a3a);
     // utility poles
-    const poleMat = new THREE.MeshStandardMaterial({ color: 0x4a544a, roughness: 0.9, metalness: 0 });
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x6a726a, roughness: 0.9, metalness: 0 });
     for (let z = baseZ - len / 2 + 26; z < baseZ + len / 2; z += 50) {
       const side = rand() < 0.5 ? -1 : 1;
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 6.8, 6), poleMat);
@@ -471,7 +495,7 @@ export class World {
 
   _addCountryside(seg, rand, baseZ, len) {
     this._addTrees(seg, rand, baseZ, len, 4 + Math.floor(rand() * 6), 0x4a8a4a);
-    const postMat = new THREE.MeshStandardMaterial({ color: 0x5a503a, roughness: 0.9, metalness: 0 });
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x7a6a4a, roughness: 0.9, metalness: 0 });
     for (let z = baseZ - len / 2 + 14; z < baseZ + len / 2; z += 8) {
       const side = rand() < 0.5 ? -1 : 1;
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.3, 5), postMat);
@@ -487,7 +511,7 @@ export class World {
   }
 
   _addElevated(seg, rand, baseZ, len) {
-    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x4a5056, roughness: 0.75, metalness: 0.15 });
+    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x7a8288, roughness: 0.75, metalness: 0.15 });
     for (let z = baseZ - len / 2 + 20; z < baseZ + len / 2; z += 32) {
       for (const sx of [-17.4, 17.4]) {
         const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.4, 6.2, 1.4), pillarMat);
@@ -503,8 +527,8 @@ export class World {
         seg.add(brace);
       }
     }
-    const mat = new THREE.MeshStandardMaterial({ color: 0x343c44, roughness: 0.75, metalness: 0.2 });
-    const win = new THREE.MeshStandardMaterial({ color: 0x556a7a, roughness: 0.1, metalness: 0.05 });
+    const mat = new THREE.MeshStandardMaterial({ color: 0x8a929a, roughness: 0.75, metalness: 0.2 });
+    const win = new THREE.MeshStandardMaterial({ color: 0x7a8a9a, roughness: 0.1, metalness: 0.05 });
     for (let b = 0; b < 2; b++) {
       const side = rand() < 0.5 ? -1 : 1;
       const bx = side * (48 + rand() * 60);
@@ -519,15 +543,15 @@ export class World {
   /** Build a detailed building with window grid, setbacks, roof, and varied facade. */
   _addBuilding(seg, x, y, z, w, h, d, zone, rand, overrideWinMat, overrideMat) {
     const wallMat = overrideMat || new THREE.MeshStandardMaterial({
-      color: zone === 'urban' ? 0x3e464e : 0x5c6b73,
+      color: zone === 'urban' ? 0x7a8288 : 0x9aaab2,
       roughness: 0.8, metalness: 0.15
     });
     const winMat = overrideWinMat || new THREE.MeshStandardMaterial({
-      color: 0x4a6580, roughness: 0.1, metalness: 0.05,
-      emissive: 0x1a252f, emissiveIntensity: 0.0
+      color: 0x6a85a0, roughness: 0.1, metalness: 0.05,
+      emissive: 0x2a3a4f, emissiveIntensity: 0.0
     });
     const roofMat = new THREE.MeshStandardMaterial({
-      color: 0x2d3339, roughness: 0.9, metalness: 0.05
+      color: 0x5a6570, roughness: 0.9, metalness: 0.05
     });
 
     const group = new THREE.Group();
@@ -555,7 +579,7 @@ export class World {
     group.add(roof);
 
     // Roof parapet / detail
-    const parapet = new THREE.Mesh(new THREE.BoxGeometry(w * 1.04, 0.5, d * 1.04), new THREE.MeshStandardMaterial({ color: 0x22272c }));
+    const parapet = new THREE.Mesh(new THREE.BoxGeometry(w * 1.04, 0.5, d * 1.04), new THREE.MeshStandardMaterial({ color: 0x4a5560 }));
     parapet.position.y = h + 1.65;
     group.add(parapet);
 
@@ -579,7 +603,7 @@ export class World {
         const wm = winMat.clone();
         if (!lit) {
           wm.emissiveIntensity = 0.0;
-          wm.color.setHex(0x2a3540);
+          wm.color.setHex(0x4a5a6a);
         } else {
           wm.emissiveIntensity = 0.05;
         }
@@ -608,7 +632,7 @@ export class World {
   /* ---------- improved trees ---------- */
 
   _addTrees(seg, rand, baseZ, len, count, leafColor) {
-    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x3d3226, roughness: 0.9, metalness: 0 });
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d5246, roughness: 0.9, metalness: 0 });
     const leafMat = new THREE.MeshStandardMaterial({ color: leafColor, roughness: 0.9, metalness: 0 });
     for (let t = 0; t < count; t++) {
       const side = rand() < 0.5 ? -1 : 1;
